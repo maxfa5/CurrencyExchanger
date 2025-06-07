@@ -13,19 +13,19 @@ import java.util.stream.Collectors;
 @Service
 public class CurrencyService {
     private final JdbcTemplate jdbcTemplate;
-
-    // Маппер для преобразования строки результата в объект User
-    private final RowMapper<Currencies> currenciesRowMapper = (rs, rowNum) -> {
-        Currencies currencies = new Currencies();
-        currencies.setID(rs.getLong("id"));
-        currencies.setCode(rs.getString("code"));
-        currencies.setFullName(rs.getString("fullName"));
-        currencies.setSign(rs.getString("sign"));
-        return currencies;
-    };
+    private final RowMapper<Currencies> currenciesRowMapper;
+    private final RowMapper<CurrenciesDTO> currencyRowMapper;
 
     public CurrencyService(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.currenciesRowMapper = (rs, rowNum) -> {
+            Currencies currencies = new Currencies();
+            currencies.setID(rs.getLong("id"));
+            currencies.setCode(rs.getString("code"));
+            currencies.setFullName(rs.getString("fullName"));
+            currencies.setSign(rs.getString("sign"));
+            return currencies;
+        };
         this.currencyRowMapper = (rs, rowNum) -> {
             CurrenciesDTO currency = new CurrenciesDTO();
             currency.setID(rs.getLong("id"));
@@ -74,6 +74,12 @@ public class CurrencyService {
         String sql = "SELECT * FROM Currencies WHERE code = ?";
         Currencies currency = jdbcTemplate.queryForObject(sql, currenciesRowMapper, code);
         return mapToDTO(currency);
+    }
+
+    public Currencies getCurrenciesById(Long id) {
+        String sql = "SELECT * FROM Currencies WHERE id = ?";
+        Currencies currency = jdbcTemplate.queryForObject(sql, currenciesRowMapper, id);
+        return currency;
     }
 
     // Получение всех пользователей
