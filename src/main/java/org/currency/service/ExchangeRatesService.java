@@ -279,6 +279,12 @@ public class ExchangeRatesService {
         }
         return rate.setScale(6, RoundingMode.HALF_UP);
     }
+
+    public ExchangeRatesResponse updateExchangeRatesFromTo(String from, String to, BigDecimal rate) {
+        String sql = "UPDATE ExchangeRates SET rate = ? WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?) AND targetCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
+        jdbcTemplate.update(sql, rate, from, to);
+        return getExchangeRatesFromTo(from, to);
+    }
     
     
     

@@ -9,9 +9,12 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.http.ResponseEntity;
 import org.currency.DTO.ExchangeRatesResponse;
+import org.currency.DTO.RateDTO;
+
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -49,6 +52,20 @@ public class ExchangeRatesController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @PatchMapping("/exchangeRate/{doubleCode}")
+    public ResponseEntity<ExchangeRatesResponse> updateExchangeRatesByDoubleCode(@PathVariable String doubleCode, @Valid @RequestBody RateDTO rateBody) {
+        doubleCode = doubleCode.toUpperCase().replaceAll("(.{3})", "$1 ").trim();
+        String from = doubleCode.split(" ")[0];
+        String to = doubleCode.split(" ")[1];
+        ExchangeRatesResponse response = exchangeRatesService.updateExchangeRatesFromTo(from, to, rateBody.getRate());
+        if (response != null) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
 
     @GetMapping("/exchangeRates")
     public ResponseEntity<List<ExchangeRatesResponse>> getAllExchangeRates() {
