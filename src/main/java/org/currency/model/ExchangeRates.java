@@ -8,6 +8,15 @@ public class ExchangeRates {
     private long TargetCurrencyId;
     private BigDecimal rate;
 
+    public ExchangeRates() {
+    }
+
+    public ExchangeRates(long baseCurrencyId, long targetCurrencyId, BigDecimal rate) {
+        this.BaseCurrencyId = baseCurrencyId;
+        this.TargetCurrencyId = targetCurrencyId;
+        this.rate = rate;
+    }
+
     public Long getId() {
         return id;
     }

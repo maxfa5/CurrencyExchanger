@@ -14,11 +14,12 @@ import org.springframework.http.ResponseEntity;
 import org.currency.DTO.ExchangeRatesResponse;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.currency.model.ExchangeRates;
 
 @RestController
-@RequestMapping("/api/exchangeRates")
+@RequestMapping("/api")
 public class ExchangeRatesController {
     private final ExchangeRatesService exchangeRatesService;
 
@@ -26,34 +27,41 @@ public class ExchangeRatesController {
         this.exchangeRatesService = exchangeRatesService;
     }
 
-    @PostMapping
+    @PostMapping("/exchangeRates")
     public ResponseEntity<ExchangeRatesResponse> createExchangeRates(@Valid @RequestBody ExchangeRatesDTO exchangeRates) {
         return ResponseEntity.ok(exchangeRatesService.createExchangeRates(exchangeRatesService.convertToEntity(exchangeRates)));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/exchangeRates/{id}")
     public ResponseEntity<ExchangeRates> getExchangeRatesById(@PathVariable Long id) {
         return ResponseEntity.ok(exchangeRatesService.getExchangeRatesById(id));
     }
 
-    @GetMapping("/{DoubleCode}")
-        public ResponseEntity<ExchangeRates> getExchangeRatesByDoubleCode(@PathVariable String DoubleCode) {
-        String from = DoubleCode.split(" ")[0];
-        String to = DoubleCode.split(" ")[2];
-        return ResponseEntity.ok(exchangeRatesService.getExchangeRatesFromTo(from, to));
+    @GetMapping("/exchangeRate/{doubleCode}")
+    public ResponseEntity<ExchangeRatesResponse> getExchangeRatesByDoubleCode(@PathVariable String doubleCode) {
+        doubleCode = doubleCode.toUpperCase().replaceAll("(.{3})", "$1 ").trim();
+        String from = doubleCode.split(" ")[0];
+        String to = doubleCode.split(" ")[1];
+        ExchangeRatesResponse response = exchangeRatesService.getExchangeRatesFromTo(from, to);
+        if (response != null) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
-    @GetMapping
-    public ResponseEntity<List<ExchangeRates>> getAllExchangeRates() {
-        return ResponseEntity.ok(exchangeRatesService.getAllExchangeRates());   
+    @GetMapping("/exchangeRates")
+    public ResponseEntity<List<ExchangeRatesResponse>> getAllExchangeRates() {
+        return ResponseEntity.ok(exchangeRatesService.getAllExchangeRates().stream()
+        .<ExchangeRatesResponse>map(exchangeRatesService::convertToResponse).collect(Collectors.toList()));   
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/exchangeRates/{id}")
     public ResponseEntity<ExchangeRates> updateExchangeRates(@PathVariable Long id, @RequestBody ExchangeRatesDTO exchangeRates) {
         return ResponseEntity.ok(exchangeRatesService.updateExchangeRates(id, exchangeRates));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/exchangeRates/{id}")
     public ResponseEntity<Void> deleteExchangeRates(@PathVariable Long id) {
         exchangeRatesService.deleteExchangeRates(id);
         return ResponseEntity.ok().build();

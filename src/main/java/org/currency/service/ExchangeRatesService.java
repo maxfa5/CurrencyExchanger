@@ -1,7 +1,9 @@
 package org.currency.service;
 
 import java.util.List;
-
+import java.util.ArrayList;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import org.currency.exception.CurrencyNotFoundException;
 import org.currency.model.ExchangeRates;
 import org.currency.DTO.ExchangeRatesDTO;
@@ -9,6 +11,7 @@ import org.currency.DTO.ExchangeRatesResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
+import org.currency.exception.ExchangeRateNotFoundException;
 
 @Service
 public class ExchangeRatesService {
@@ -40,7 +43,7 @@ public class ExchangeRatesService {
             )
         """);
     }
-    private ExchangeRatesResponse convertToResponse(ExchangeRates exchangeRates) {
+    public ExchangeRatesResponse convertToResponse(ExchangeRates exchangeRates) {
         ExchangeRatesResponse exchangeRatesResponse = new ExchangeRatesResponse();
         exchangeRatesResponse.setId(exchangeRates.getId());
         exchangeRatesResponse.setBaseCurrency(currencyService.getCurrenciesById(exchangeRates.getBaseCurrencyId()));
@@ -82,7 +85,13 @@ public class ExchangeRatesService {
         exchangeRatesDTO.setRate(exchangeRates.getRate());
         return exchangeRatesDTO;
     }
-    
+    private ExchangeRates convertToEntity(ExchangeRatesResponse exchangeRatesResponse) {
+        ExchangeRates exchangeRates = new ExchangeRates();
+        exchangeRates.setBaseCurrencyId(exchangeRatesResponse.getBaseCurrency().getID());
+        exchangeRates.setTargetCurrencyId(exchangeRatesResponse.getTargetCurrency().getID());
+        exchangeRates.setRate(exchangeRatesResponse.getRate());
+        return exchangeRates;
+    }
     public ExchangeRates convertToEntity(ExchangeRatesDTO exchangeRatesDTO) {
         ExchangeRates exchangeRates = new ExchangeRates();
         try {
@@ -125,15 +134,151 @@ public class ExchangeRatesService {
         jdbcTemplate.update(sql, id);
     }
 
-    public ExchangeRates getExchangeRatesFromTo(String from, String to) {
-        String sql = "SELECT * FROM ExchangeRates WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?) AND targetCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
-        try {
-            return jdbcTemplate.queryForObject(sql, exchangeRatesRowMapper, from, to);
-        } catch (Exception e) {
-            return jdbcTemplate.queryForObject(sql, exchangeRatesRowMapper, to, from);
+    public ExchangeRatesResponse getExchangeRatesFromTo(String from, String to) {
+        // Проверяем существование валют
+        String sqlCheckCurrency = "SELECT COUNT(*) FROM Currencies WHERE code = ?";
+        Integer countFrom = jdbcTemplate.queryForObject(sqlCheckCurrency, Integer.class, from);
+        Integer countTo = jdbcTemplate.queryForObject(sqlCheckCurrency, Integer.class, to);
+        
+        if (countFrom == null || countFrom == 0) {
+            throw new CurrencyNotFoundException("Currency not found: " + from);
         }
+        if (countTo == null || countTo == 0) {
+            throw new CurrencyNotFoundException("Currency not found: " + to);
+        }
+        System.out.println( jdbcTemplate.queryForObject("SELECT id FROM Currencies WHERE code = ?",Integer.class, from));
+        System.out.println( jdbcTemplate.queryForObject("SELECT id FROM Currencies WHERE code = ?",Integer.class, to));
+
+        // Ищем прямой курс
+        String sqlDirect = "SELECT * from ExchangeRates WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?) AND targetCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
+        try {
+            ExchangeRates directRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesRowMapper, from, to);
+            System.out.println(directRate);
+            if (directRate != null) {
+                return convertToResponse(directRate);
+            }
+        } catch (Exception e) {
+            // Игнорируем ошибку и продолжаем поиск
+        }
+
+        // Ищем обратный курс
+        try {
+            ExchangeRates reverseRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesRowMapper, to, from);
+            if (reverseRate != null) {
+                ExchangeRates reversedRate = new ExchangeRates(
+                    reverseRate.getTargetCurrencyId(),
+                    reverseRate.getBaseCurrencyId(),
+                    reverseRate.getRate()
+                );
+                return createExchangeRates(reversedRate);
+            }
+        } catch (Exception e) {
+            throw new CurrencyNotFoundException("Currency " + to + " not found");
+        }
+        List<ExchangeRates> path = new ArrayList<>();
+        path = (getExchangeRatesMultycast(from, to, path));
+        if (!path.isEmpty()) {
+            BigDecimal rate = calculatePathRate(path);
+            return createExchangeRates(new ExchangeRates(path.get(0).getBaseCurrencyId(), path.get(path.size() - 1).getTargetCurrencyId(), rate));
+        }
+        
+        throw new ExchangeRateNotFoundException("Exchange rate not found for pair: " + from + "/" + to);
     }
     
+    private List<ExchangeRates> getExchangeRatesMultycast(String from, String to, List<ExchangeRates> pathToFind) {
+        if (pathToFind.size() > 5) { // Ограничиваем глубину поиска
+            return List.of();
+        }
+        System.out.println(pathToFind.toString());
+
+        // Ищем прямые курсы
+        String sqlDirect = "SELECT * from ExchangeRates WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?) AND targetCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
+        try {
+            ExchangeRates directRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesRowMapper, from, to);
+            if (directRate != null) {
+                pathToFind.add(directRate);
+                return pathToFind;
+            }
+        } catch (Exception e) {
+            // Игнорируем ошибку и продолжаем поиск
+        }
+
+        // Ищем обратные курсы
+        try {
+            ExchangeRates reverseRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesRowMapper, to, from);
+            if (reverseRate != null) {
+                ExchangeRates reversedRate = new ExchangeRates(
+                    reverseRate.getTargetCurrencyId(),
+                    reverseRate.getBaseCurrencyId(),
+                    reverseRate.getRate()
+                );
+                pathToFind.add(reversedRate);
+                System.out.println(reversedRate.getTargetCurrencyId());
+                return pathToFind;
+            }
+        } catch (Exception e) {
+            // Игнорируем ошибку и продолжаем поиск
+        }
+
+        // Ищем промежуточные курсы
+        String sqlFindAll = "SELECT * from ExchangeRates WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
+        List<ExchangeRates> exchangeRates = jdbcTemplate.query(sqlFindAll, exchangeRatesRowMapper, from);
+        
+        for (ExchangeRates exchangeRate : exchangeRates) {
+            if (pathToFind.contains(exchangeRate)) {
+                continue; // Пропускаем уже использованные курсы
+            }
+
+            String targetCode = jdbcTemplate.queryForObject(
+                "SELECT code FROM Currencies WHERE id = ?", 
+                String.class, 
+                exchangeRate.getTargetCurrencyId()
+            );
+            System.out.println(targetCode);
+
+            pathToFind.add(exchangeRate);
+            List<ExchangeRates> result = getExchangeRatesMultycast(targetCode, to, pathToFind);
+            
+            if (result.isEmpty()) {
+                pathToFind.remove(exchangeRate);
+            } else {
+                // Проверяем, есть ли последний элемент в пути
+                String lastTargetCode = jdbcTemplate.queryForObject(
+                    "SELECT code FROM Currencies WHERE id = ?", 
+                    String.class, 
+                    result.get(result.size() - 1).getTargetCurrencyId()
+                );
+                
+                if (!lastTargetCode.equals(to)) {
+                    // Если последний элемент не ведет к целевой валюте, добавляем его
+                    try {
+                        ExchangeRates finalRate = jdbcTemplate.queryForObject(
+                            sqlDirect, 
+                            exchangeRatesRowMapper, 
+                            lastTargetCode, 
+                            to
+                        );
+                        if (finalRate != null) {
+                            result.add(finalRate);
+                        }   
+                    } catch (Exception e) {
+                        // Игнорируем ошибку
+                    }
+                }
+                return result;
+            }
+        }
+        return List.of();
+    }
+
+    private BigDecimal calculatePathRate(List<ExchangeRates> path) {
+        if (path.isEmpty()) return BigDecimal.valueOf(Double.MAX_VALUE);
+        BigDecimal rate = BigDecimal.ONE;
+        for (ExchangeRates exchangeRate : path) {
+            rate = rate.multiply(exchangeRate.getRate());
+        }
+        return rate.setScale(6, RoundingMode.HALF_UP);
+    }
     
     
     
