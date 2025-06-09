@@ -79,7 +79,7 @@ public class ExchangeRatesController {
     @GetMapping("/exchangeRates")
     public ResponseEntity<List<ExchangeRatesResponseDTO>> getAllExchangeRates() {
         return ResponseEntity.ok(exchangeRatesService.getAllExchangeRates().stream()
-        .<ExchangeRatesResponseDTO>map(exchangeRatesService::convertToResponse).collect(Collectors.toList()));   
+        .<ExchangeRatesResponseDTO>map(rate -> exchangeRatesMapper.convertToResponse(rate, exchangeRatesService.getCurrencyService())).collect(Collectors.toList()));   
     }
 
     @PutMapping("/exchangeRates/{id}")

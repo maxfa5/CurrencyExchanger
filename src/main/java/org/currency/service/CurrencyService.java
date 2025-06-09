@@ -45,9 +45,7 @@ public class CurrencyService {
         
         if (id != null) {
             currency.setID(id);
-            System.out.println("Created currency with ID: " + id);
         } else {
-            System.out.println("Failed to get ID for created currency");
             throw new DataAccessException("Failed to get ID for created currency") {};
         }
         return currenciesMapper.mapToDTO(currency);

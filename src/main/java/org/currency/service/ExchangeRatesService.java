@@ -83,14 +83,10 @@ public class ExchangeRatesService {
         if (countTo == null || countTo == 0) {
             throw new CurrencyNotFoundException("Currency not found: " + to);
         }
-        System.out.println( jdbcTemplate.queryForObject("SELECT id FROM Currencies WHERE code = ?",Integer.class, from));
-        System.out.println( jdbcTemplate.queryForObject("SELECT id FROM Currencies WHERE code = ?",Integer.class, to));
-
         // Ищем прямой курс
         String sqlDirect = "SELECT * from ExchangeRates WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?) AND targetCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
         try {
             ExchangeRates directRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesMapper.getExchangeRatesRowMapper(), from, to);
-            System.out.println(directRate);
             if (directRate != null) {
                 return exchangeRatesMapper.convertToResponse(directRate, currencyService);
             }
@@ -126,7 +122,6 @@ public class ExchangeRatesService {
         if (pathToFind.size() > 5) { // Ограничиваем глубину поиска
             return List.of();
         }
-        System.out.println(pathToFind.toString());
 
         // Ищем прямые курсы
         String sqlDirect = "SELECT * from ExchangeRates WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?) AND targetCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
@@ -150,7 +145,6 @@ public class ExchangeRatesService {
                     reverseRate.getRate()
                 );
                 pathToFind.add(reversedRate);
-                System.out.println(reversedRate.getTargetCurrencyId());
                 return pathToFind;
             }
         } catch (Exception e) {
@@ -171,7 +165,6 @@ public class ExchangeRatesService {
                 String.class, 
                 exchangeRate.getTargetCurrencyId()
             );
-            System.out.println(targetCode);
 
             pathToFind.add(exchangeRate);
             List<ExchangeRates> result = getExchangeRatesMultycast(targetCode, to, pathToFind);
@@ -228,6 +221,10 @@ public class ExchangeRatesService {
         BigDecimal rate = exchangeRatesResponse.getRate();
         BigDecimal result = amount.multiply(rate);
         return new ExchangedCurrenciesDTO(exchangeRatesResponse.getBaseCurrency(), exchangeRatesResponse.getTargetCurrency(), amount, rate, result);
+    }
+
+    public CurrencyService getCurrencyService() {
+        return currencyService;
     }
     
     
