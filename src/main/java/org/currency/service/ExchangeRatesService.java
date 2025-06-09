@@ -8,6 +8,7 @@ import org.currency.exception.CurrencyNotFoundException;
 import org.currency.model.ExchangeRates;
 import org.currency.DTO.ExchangeRatesDTO;
 import org.currency.DTO.ExchangeRatesResponse;
+import org.currency.DTO.ExchangedCurrenciesDTO;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
@@ -284,6 +285,13 @@ public class ExchangeRatesService {
         String sql = "UPDATE ExchangeRates SET rate = ? WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?) AND targetCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
         jdbcTemplate.update(sql, rate, from, to);
         return getExchangeRatesFromTo(from, to);
+    }
+
+    public ExchangedCurrenciesDTO convertByExchangeRates(String baseCurrencyCode, String targetCurrencyCode, BigDecimal amount) {
+        ExchangeRatesResponse exchangeRatesResponse = getExchangeRatesFromTo(baseCurrencyCode, targetCurrencyCode);
+        BigDecimal rate = exchangeRatesResponse.getRate();
+        BigDecimal result = amount.multiply(rate);
+        return new ExchangedCurrenciesDTO(exchangeRatesResponse.getBaseCurrency(), exchangeRatesResponse.getTargetCurrency(), amount, rate, result);
     }
     
     
