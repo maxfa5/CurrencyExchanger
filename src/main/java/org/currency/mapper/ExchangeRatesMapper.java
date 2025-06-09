@@ -8,6 +8,7 @@ import org.currency.DTO.ExchangeRatesDTO;
 import org.currency.DTO.ExchangeRatesResponseDTO;
 import org.currency.model.ExchangeRates;
 import org.currency.exception.CurrencyNotFoundException;
+import org.currency.service.CurrencyService;
 
 @Component
 public class ExchangeRatesMapper {
@@ -55,6 +56,16 @@ public class ExchangeRatesMapper {
         exchangeRatesDTO.setRate(exchangeRates.getRate());
         return exchangeRatesDTO;
     }
+
+    public ExchangeRatesResponseDTO convertToResponse(ExchangeRates exchangeRates, CurrencyService currencyService) {
+        ExchangeRatesResponseDTO exchangeRatesResponse = new ExchangeRatesResponseDTO();
+        exchangeRatesResponse.setId(exchangeRates.getId());
+        exchangeRatesResponse.setBaseCurrency(currencyService.getCurrenciesById(exchangeRates.getBaseCurrencyId()));
+        exchangeRatesResponse.setTargetCurrency(currencyService.getCurrenciesById(exchangeRates.getTargetCurrencyId()));
+        exchangeRatesResponse.setRate(exchangeRates.getRate());
+        return exchangeRatesResponse;
+    }
+
     public ExchangeRates convertToEntity(ExchangeRatesResponseDTO exchangeRatesResponse) {
         ExchangeRates exchangeRates = new ExchangeRates();
         exchangeRates.setBaseCurrencyId(exchangeRatesResponse.getBaseCurrency().getID());

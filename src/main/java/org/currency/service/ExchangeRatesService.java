@@ -39,20 +39,12 @@ public class ExchangeRatesService {
             )
         """);
     }
-    public ExchangeRatesResponseDTO convertToResponse(ExchangeRates exchangeRates) {
-        ExchangeRatesResponseDTO exchangeRatesResponse = new ExchangeRatesResponseDTO();
-        exchangeRatesResponse.setId(exchangeRates.getId());
-        exchangeRatesResponse.setBaseCurrency(currencyService.getCurrenciesById(exchangeRates.getBaseCurrencyId()));
-        exchangeRatesResponse.setTargetCurrency(currencyService.getCurrenciesById(exchangeRates.getTargetCurrencyId()));
-        exchangeRatesResponse.setRate(exchangeRates.getRate());
-        return exchangeRatesResponse;
-    }
 
     public ExchangeRatesResponseDTO createExchangeRates(ExchangeRates exchangeRates) {
         String sql = "INSERT INTO ExchangeRates (baseCurrencyId, targetCurrencyId, rate) VALUES (?, ?, ?) RETURNING id";
         Long id = jdbcTemplate.queryForObject(sql, Long.class, exchangeRates.getBaseCurrencyId(), exchangeRates.getTargetCurrencyId(), exchangeRates.getRate());
         exchangeRates.setId(id);
-        return convertToResponse(exchangeRates);
+        return exchangeRatesMapper.convertToResponse(exchangeRates, currencyService);
     }
 
     public ExchangeRates getExchangeRatesById(Long id) {
@@ -100,7 +92,7 @@ public class ExchangeRatesService {
             ExchangeRates directRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesMapper.getExchangeRatesRowMapper(), from, to);
             System.out.println(directRate);
             if (directRate != null) {
-                return convertToResponse(directRate);
+                return exchangeRatesMapper.convertToResponse(directRate, currencyService);
             }
         } catch (Exception e) {
             // Игнорируем ошибку и продолжаем поиск
@@ -115,7 +107,7 @@ public class ExchangeRatesService {
                     reverseRate.getBaseCurrencyId(),
                     reverseRate.getRate()
                 );
-                return createExchangeRates(reversedRate);
+                return exchangeRatesMapper.convertToResponse(reversedRate, currencyService);
             }
         } catch (Exception e) {
             throw new CurrencyNotFoundException("Currency " + to + " not found");
