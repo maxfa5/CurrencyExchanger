@@ -1,9 +1,9 @@
 package org.currency.DTO;
 
-public class CurrencyResponse {
+public class CurrencyResponseDTO {
     private CurrenciesDTO currency;
 
-    public CurrencyResponse(CurrenciesDTO currency) {
+    public CurrencyResponseDTO(CurrenciesDTO currency) {
         this.currency = currency;
     }
 

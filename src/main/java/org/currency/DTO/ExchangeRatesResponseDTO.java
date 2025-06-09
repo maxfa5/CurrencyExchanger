@@ -3,7 +3,7 @@ package org.currency.DTO;
 import java.math.BigDecimal;
 import org.currency.model.Currencies;
 
-public class ExchangeRatesResponse {
+public class ExchangeRatesResponseDTO {
     private Long id;
     private Currencies baseCurrency;
     private Currencies targetCurrency;

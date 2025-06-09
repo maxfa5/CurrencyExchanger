@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.http.ResponseEntity;
-import org.currency.DTO.ExchangeRatesResponse;
+import org.currency.DTO.ExchangeRatesResponseDTO;
 import org.currency.DTO.ExchangedCurrenciesDTO;
 import org.currency.DTO.RateDTO;
+import org.currency.mapper.ExchangeRatesMapper;
+import org.currency.model.ExchangeRates;
 
 import jakarta.validation.Valid;
 
@@ -23,20 +25,20 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.currency.model.ExchangeRates;
-
 @RestController
 @RequestMapping("/api")
 public class ExchangeRatesController {
     private final ExchangeRatesService exchangeRatesService;
+    private final ExchangeRatesMapper exchangeRatesMapper;
 
-    public ExchangeRatesController(ExchangeRatesService exchangeRatesService) {
+    public ExchangeRatesController(ExchangeRatesService exchangeRatesService, ExchangeRatesMapper exchangeRatesMapper) {
         this.exchangeRatesService = exchangeRatesService;
+        this.exchangeRatesMapper = exchangeRatesMapper;
     }
 
     @PostMapping("/exchangeRates")
-    public ResponseEntity<ExchangeRatesResponse> createExchangeRates(@Valid @RequestBody ExchangeRatesDTO exchangeRates) {
-        return ResponseEntity.ok(exchangeRatesService.createExchangeRates(exchangeRatesService.convertToEntity(exchangeRates)));
+    public ResponseEntity<ExchangeRatesResponseDTO> createExchangeRates(@Valid @RequestBody ExchangeRatesDTO exchangeRates) {
+        return ResponseEntity.ok(exchangeRatesService.createExchangeRates(exchangeRatesMapper.convertToEntity(exchangeRates)));
     }
 
     @GetMapping("/exchangeRates/{id}")
@@ -45,11 +47,11 @@ public class ExchangeRatesController {
     }
 
     @GetMapping("/exchangeRate/{doubleCode}")
-    public ResponseEntity<ExchangeRatesResponse> getExchangeRatesByDoubleCode(@PathVariable String doubleCode) {
+    public ResponseEntity<ExchangeRatesResponseDTO> getExchangeRatesByDoubleCode(@PathVariable String doubleCode) {
         doubleCode = doubleCode.toUpperCase().replaceAll("(.{3})", "$1 ").trim();
         String from = doubleCode.split(" ")[0];
         String to = doubleCode.split(" ")[1];
-        ExchangeRatesResponse response = exchangeRatesService.getExchangeRatesFromTo(from, to);
+        ExchangeRatesResponseDTO response = exchangeRatesService.getExchangeRatesFromTo(from, to);
         if (response != null) {
             return ResponseEntity.ok(response);
         } else {
@@ -58,11 +60,11 @@ public class ExchangeRatesController {
     }
 
     @PatchMapping("/exchangeRate/{doubleCode}")
-    public ResponseEntity<ExchangeRatesResponse> updateExchangeRatesByDoubleCode(@PathVariable String doubleCode, @Valid @RequestBody RateDTO rateBody) {
+    public ResponseEntity<ExchangeRatesResponseDTO> updateExchangeRatesByDoubleCode(@PathVariable String doubleCode, @Valid @RequestBody RateDTO rateBody) {
         doubleCode = doubleCode.toUpperCase().replaceAll("(.{3})", "$1 ").trim();
         String from = doubleCode.split(" ")[0];
         String to = doubleCode.split(" ")[1];
-        ExchangeRatesResponse response = exchangeRatesService.updateExchangeRatesFromTo(from, to, rateBody.getRate());
+        ExchangeRatesResponseDTO response = exchangeRatesService.updateExchangeRatesFromTo(from, to, rateBody.getRate());
         if (response != null) {
             return ResponseEntity.ok(response);
         } else {
@@ -75,9 +77,9 @@ public class ExchangeRatesController {
     }
 
     @GetMapping("/exchangeRates")
-    public ResponseEntity<List<ExchangeRatesResponse>> getAllExchangeRates() {
+    public ResponseEntity<List<ExchangeRatesResponseDTO>> getAllExchangeRates() {
         return ResponseEntity.ok(exchangeRatesService.getAllExchangeRates().stream()
-        .<ExchangeRatesResponse>map(exchangeRatesService::convertToResponse).collect(Collectors.toList()));   
+        .<ExchangeRatesResponseDTO>map(exchangeRatesService::convertToResponse).collect(Collectors.toList()));   
     }
 
     @PutMapping("/exchangeRates/{id}")

@@ -7,9 +7,9 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.currency.DTO.ErrorResponse;
-import org.currency.exception.ExchangeRateNotFoundException;
+import org.currency.DTO.ErrorResponseDTO;
 import org.currency.exception.CurrencyNotFoundException;
+import org.currency.exception.ExchangeRateNotFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,14 +36,14 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(CurrencyNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleCurrencyNotFoundException(CurrencyNotFoundException ex) {
-        ErrorResponse error = new ErrorResponse(400, ex.getMessage());
+    public ResponseEntity<ErrorResponseDTO> handleCurrencyNotFoundException(CurrencyNotFoundException ex) {
+        ErrorResponseDTO error = new ErrorResponseDTO(400, ex.getMessage());
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(ExchangeRateNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleExchangeRateNotFoundException(ExchangeRateNotFoundException ex) {
-        ErrorResponse error = new ErrorResponse(404, ex.getMessage());
+    public ResponseEntity<ErrorResponseDTO> handleExchangeRateNotFoundException(ExchangeRateNotFoundException ex) {
+        ErrorResponseDTO error = new ErrorResponseDTO(404, ex.getMessage());
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
 } 

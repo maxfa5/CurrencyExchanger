@@ -1,7 +1,7 @@
 package org.currency.controller;
 
 import org.currency.DTO.CurrenciesDTO;
-import org.currency.DTO.CurrencyResponse;
+import org.currency.DTO.CurrencyResponseDTO;
 import org.currency.service.CurrencyService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,26 +20,26 @@ public class CurrencyController {
     }
 
     @PostMapping
-    public ResponseEntity<CurrencyResponse> createCurrency(@Valid @RequestBody CurrenciesDTO currency) {
-        return ResponseEntity.ok(new CurrencyResponse(currencyService.createCurrency(currency)));
+    public ResponseEntity<CurrencyResponseDTO> createCurrency(@Valid @RequestBody CurrenciesDTO currency) {
+        return ResponseEntity.ok(new CurrencyResponseDTO(currencyService.createCurrency(currency)));
     }
 
     @GetMapping("/{code}")
-    public ResponseEntity<CurrencyResponse> getCurrencyByCode(@PathVariable String code) {
-        return ResponseEntity.ok(new CurrencyResponse(currencyService.getCurrenciesByCode(code)));
+    public ResponseEntity<CurrencyResponseDTO> getCurrencyByCode(@PathVariable String code) {
+        return ResponseEntity.ok(new CurrencyResponseDTO(currencyService.getCurrenciesByCode(code)));
     }
 
     @GetMapping
-    public ResponseEntity<List<CurrencyResponse>> getAllCurrencies() {
-        List<CurrencyResponse> response = currencyService.getAllCurrencies().stream()
-            .map(CurrencyResponse::new)
+    public ResponseEntity<List<CurrencyResponseDTO>> getAllCurrencies() {
+        List<CurrencyResponseDTO> response = currencyService.getAllCurrencies().stream()
+            .map(CurrencyResponseDTO::new)
             .collect(Collectors.toList());
         return ResponseEntity.ok(response);
-    }
+        }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CurrencyResponse> updateCurrency(@PathVariable Long id, @Valid @RequestBody CurrenciesDTO currency) {
-        return ResponseEntity.ok(new CurrencyResponse(currencyService.updateCurrencies(id, currency)));
+    public ResponseEntity<CurrencyResponseDTO> updateCurrency(@PathVariable Long id, @Valid @RequestBody CurrenciesDTO currency) {
+        return ResponseEntity.ok(new CurrencyResponseDTO(currencyService.updateCurrencies(id, currency)));
     }
 
     @DeleteMapping("/{id}")

@@ -2,9 +2,9 @@ package org.currency.service;
 
 import org.currency.model.Currencies;
 import org.currency.DTO.CurrenciesDTO;
+import org.currency.mapper.CurrenciesMapper;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,27 +13,11 @@ import java.util.stream.Collectors;
 @Service
 public class CurrencyService {
     private final JdbcTemplate jdbcTemplate;
-    private final RowMapper<Currencies> currenciesRowMapper;
-    private final RowMapper<CurrenciesDTO> currencyRowMapper;
+    private final CurrenciesMapper currenciesMapper;
 
-    public CurrencyService(JdbcTemplate jdbcTemplate) {
+    public CurrencyService(JdbcTemplate jdbcTemplate, CurrenciesMapper currenciesMapper) {
         this.jdbcTemplate = jdbcTemplate;
-        this.currenciesRowMapper = (rs, rowNum) -> {
-            Currencies currencies = new Currencies();
-            currencies.setID(rs.getLong("id"));
-            currencies.setCode(rs.getString("code"));
-            currencies.setFullName(rs.getString("fullName"));
-            currencies.setSign(rs.getString("sign"));
-            return currencies;
-        };
-        this.currencyRowMapper = (rs, rowNum) -> {
-            CurrenciesDTO currency = new CurrenciesDTO();
-            currency.setID(rs.getLong("id"));
-            currency.setCode(rs.getString("code"));
-            currency.setName(rs.getString("name"));
-            currency.setSign(rs.getString("sign"));
-            return currency;
-        };
+        this.currenciesMapper = currenciesMapper;
         initTable();
     }
 
@@ -51,7 +35,7 @@ public class CurrencyService {
 
     // Создание нового пользователя
     public CurrenciesDTO createCurrency(CurrenciesDTO currencyDTO) {
-        Currencies currency = mapToEntity(currencyDTO);
+        Currencies currency = currenciesMapper.mapToEntity(currencyDTO);
         String sql = "INSERT INTO Currencies (code, fullName, sign) VALUES (?, ?, ?) RETURNING id";
         Long id = jdbcTemplate.queryForObject(sql, Long.class,
             currency.getCode(), 
@@ -66,33 +50,33 @@ public class CurrencyService {
             System.out.println("Failed to get ID for created currency");
             throw new DataAccessException("Failed to get ID for created currency") {};
         }
-        return mapToDTO(currency);
+        return currenciesMapper.mapToDTO(currency);
     }
 
     // Получение пользователя по ID
     public CurrenciesDTO getCurrenciesByCode(String code) {
         String sql = "SELECT * FROM Currencies WHERE code = ?";
-        Currencies currency = jdbcTemplate.queryForObject(sql, currenciesRowMapper, code);
-        return mapToDTO(currency);
+        Currencies currency = jdbcTemplate.queryForObject(sql, currenciesMapper.getCurrenciesRowMapper(), code);
+        return currenciesMapper.mapToDTO(currency);
     }
 
     public Currencies getCurrenciesById(Long id) {
         String sql = "SELECT * FROM Currencies WHERE id = ?";
-        Currencies currency = jdbcTemplate.queryForObject(sql, currenciesRowMapper, id);
+        Currencies currency = jdbcTemplate.queryForObject(sql, currenciesMapper.getCurrenciesRowMapper(), id);
         return currency;
     }
 
     // Получение всех пользователей
     public List<CurrenciesDTO> getAllCurrencies() {
         String sql = "SELECT * FROM Currencies";
-        List<Currencies> currencies = jdbcTemplate.query(sql, currenciesRowMapper);
+        List<Currencies> currencies = jdbcTemplate.query(sql, currenciesMapper.getCurrenciesRowMapper());
         return currencies.stream()
-            .map(this::mapToDTO)
+            .map(currenciesMapper::mapToDTO)
             .collect(Collectors.toList());
     }
 
     public CurrenciesDTO updateCurrencies(Long id, CurrenciesDTO currencyDTO) {
-        Currencies currency = mapToEntity(currencyDTO);
+        Currencies currency = currenciesMapper.mapToEntity(currencyDTO);
         String sql = "UPDATE Currencies SET code = ?, fullName = ?, sign = ? WHERE id = ?";
         jdbcTemplate.update(sql, 
             currency.getCode(), 
@@ -101,7 +85,7 @@ public class CurrencyService {
             id
         );
         currency.setID(id);
-        return mapToDTO(currency);
+        return currenciesMapper.mapToDTO(currency);
     }
 
     // Удаление пользователя
@@ -110,21 +94,4 @@ public class CurrencyService {
         jdbcTemplate.update(sql, id);
     }
 
-    private CurrenciesDTO mapToDTO(Currencies currency) {
-        CurrenciesDTO dto = new CurrenciesDTO();
-        dto.setID(currency.getID());
-        dto.setCode(currency.getCode());
-        dto.setName(currency.getFullName());
-        dto.setSign(currency.getSign());
-        return dto;
-    }
-
-    private Currencies mapToEntity(CurrenciesDTO dto) {
-        Currencies currency = new Currencies();
-        currency.setID(dto.getID());
-        currency.setCode(dto.getCode());
-        currency.setFullName(dto.getName());
-        currency.setSign(dto.getSign());
-        return currency;
-    }
 } 

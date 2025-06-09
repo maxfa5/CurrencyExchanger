@@ -7,28 +7,23 @@ import java.math.RoundingMode;
 import org.currency.exception.CurrencyNotFoundException;
 import org.currency.model.ExchangeRates;
 import org.currency.DTO.ExchangeRatesDTO;
-import org.currency.DTO.ExchangeRatesResponse;
 import org.currency.DTO.ExchangedCurrenciesDTO;
+import org.currency.DTO.ExchangeRatesResponseDTO;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.currency.exception.ExchangeRateNotFoundException;
+import org.currency.mapper.ExchangeRatesMapper;
 
 @Service
 public class ExchangeRatesService {
     private final JdbcTemplate jdbcTemplate;
     private final CurrencyService currencyService;
-    private final RowMapper<ExchangeRates> exchangeRatesRowMapper = (rs, rowNum) -> {
-        ExchangeRates exchangeRates = new ExchangeRates();
-        exchangeRates.setId(rs.getLong("id"));
-        exchangeRates.setBaseCurrencyId(rs.getLong("baseCurrencyId"));
-        exchangeRates.setTargetCurrencyId(rs.getLong("targetCurrencyId"));
-        exchangeRates.setRate(rs.getBigDecimal("rate"));
-        return exchangeRates;
-    };
-    public ExchangeRatesService(JdbcTemplate jdbcTemplate, CurrencyService currencyService) {
+    private final ExchangeRatesMapper exchangeRatesMapper;
+    public ExchangeRatesService(JdbcTemplate jdbcTemplate, CurrencyService currencyService, ExchangeRatesMapper exchangeRatesMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.currencyService = currencyService;
+        this.exchangeRatesMapper = exchangeRatesMapper;
         initTable();
     }
 
@@ -44,8 +39,8 @@ public class ExchangeRatesService {
             )
         """);
     }
-    public ExchangeRatesResponse convertToResponse(ExchangeRates exchangeRates) {
-        ExchangeRatesResponse exchangeRatesResponse = new ExchangeRatesResponse();
+    public ExchangeRatesResponseDTO convertToResponse(ExchangeRates exchangeRates) {
+        ExchangeRatesResponseDTO exchangeRatesResponse = new ExchangeRatesResponseDTO();
         exchangeRatesResponse.setId(exchangeRates.getId());
         exchangeRatesResponse.setBaseCurrency(currencyService.getCurrenciesById(exchangeRates.getBaseCurrencyId()));
         exchangeRatesResponse.setTargetCurrency(currencyService.getCurrenciesById(exchangeRates.getTargetCurrencyId()));
@@ -53,7 +48,7 @@ public class ExchangeRatesService {
         return exchangeRatesResponse;
     }
 
-    public ExchangeRatesResponse createExchangeRates(ExchangeRates exchangeRates) {
+    public ExchangeRatesResponseDTO createExchangeRates(ExchangeRates exchangeRates) {
         String sql = "INSERT INTO ExchangeRates (baseCurrencyId, targetCurrencyId, rate) VALUES (?, ?, ?) RETURNING id";
         Long id = jdbcTemplate.queryForObject(sql, Long.class, exchangeRates.getBaseCurrencyId(), exchangeRates.getTargetCurrencyId(), exchangeRates.getRate());
         exchangeRates.setId(id);
@@ -62,68 +57,17 @@ public class ExchangeRatesService {
 
     public ExchangeRates getExchangeRatesById(Long id) {
         String sql = "SELECT * FROM ExchangeRates WHERE id = ?";
-        return jdbcTemplate.queryForObject(sql, exchangeRatesRowMapper, id);
+        return jdbcTemplate.queryForObject(sql, exchangeRatesMapper.getExchangeRatesRowMapper(), id);
     }
 
     public List<ExchangeRates> getAllExchangeRates() {
         String sql = "SELECT * FROM ExchangeRates";
-        return jdbcTemplate.query(sql, exchangeRatesRowMapper);
-    }
-    public ExchangeRatesDTO convertToDTO(ExchangeRates exchangeRates) {
-        ExchangeRatesDTO exchangeRatesDTO = new ExchangeRatesDTO();
-        String baseCode = jdbcTemplate.queryForObject(
-            "SELECT code FROM Currencies WHERE id = ?", 
-            String.class, 
-            exchangeRates.getBaseCurrencyId()
-        );
-        String targetCode = jdbcTemplate.queryForObject(
-            "SELECT code FROM Currencies WHERE id = ?", 
-            String.class, 
-            exchangeRates.getTargetCurrencyId()
-        );
-        exchangeRatesDTO.setBaseCurrencyCode(baseCode);
-        exchangeRatesDTO.setTargetCurrencyCode(targetCode);
-        exchangeRatesDTO.setRate(exchangeRates.getRate());
-        return exchangeRatesDTO;
-    }
-    private ExchangeRates convertToEntity(ExchangeRatesResponse exchangeRatesResponse) {
-        ExchangeRates exchangeRates = new ExchangeRates();
-        exchangeRates.setBaseCurrencyId(exchangeRatesResponse.getBaseCurrency().getID());
-        exchangeRates.setTargetCurrencyId(exchangeRatesResponse.getTargetCurrency().getID());
-        exchangeRates.setRate(exchangeRatesResponse.getRate());
-        return exchangeRates;
-    }
-    public ExchangeRates convertToEntity(ExchangeRatesDTO exchangeRatesDTO) {
-        ExchangeRates exchangeRates = new ExchangeRates();
-        try {
-            Long baseId = jdbcTemplate.queryForObject(
-                "SELECT id FROM Currencies WHERE code = ?", 
-                Long.class, 
-                exchangeRatesDTO.getBaseCurrencyCode()
-            );
-            try {
-            Long targetId = jdbcTemplate.queryForObject(
-            "SELECT id FROM Currencies WHERE code = ?", 
-            Long.class, 
-            exchangeRatesDTO.getTargetCurrencyCode()
-            );
-            exchangeRates.setBaseCurrencyId(baseId);
-            exchangeRates.setTargetCurrencyId(targetId);
-            exchangeRates.setRate(exchangeRatesDTO.getRate());
-            return exchangeRates;
-    } catch (Exception e) {
-            throw new CurrencyNotFoundException("Currency "+ exchangeRatesDTO.getTargetCurrencyCode() +" not found");
-        }
-        }catch (CurrencyNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new CurrencyNotFoundException("Currency "+ exchangeRatesDTO.getBaseCurrencyCode() +" not found");
-        }
+        return jdbcTemplate.query(sql, exchangeRatesMapper.getExchangeRatesRowMapper());
     }
 
 
     public ExchangeRates updateExchangeRates(Long id, ExchangeRatesDTO exchangeRates) {
-        ExchangeRates exchangeRatesEntity = convertToEntity(exchangeRates);
+        ExchangeRates exchangeRatesEntity = exchangeRatesMapper.convertToEntity(exchangeRates);
         String sql = "UPDATE ExchangeRates SET baseCurrencyId = ?, targetCurrencyId = ?, rate = ? WHERE id = ?";
         jdbcTemplate.update(sql, exchangeRatesEntity.getBaseCurrencyId(), exchangeRatesEntity.getTargetCurrencyId(), exchangeRatesEntity.getRate(), id);
         exchangeRatesEntity.setId(id);
@@ -135,7 +79,7 @@ public class ExchangeRatesService {
         jdbcTemplate.update(sql, id);
     }
 
-    public ExchangeRatesResponse getExchangeRatesFromTo(String from, String to) {
+    public ExchangeRatesResponseDTO getExchangeRatesFromTo(String from, String to) {
         // Проверяем существование валют
         String sqlCheckCurrency = "SELECT COUNT(*) FROM Currencies WHERE code = ?";
         Integer countFrom = jdbcTemplate.queryForObject(sqlCheckCurrency, Integer.class, from);
@@ -153,7 +97,7 @@ public class ExchangeRatesService {
         // Ищем прямой курс
         String sqlDirect = "SELECT * from ExchangeRates WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?) AND targetCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
         try {
-            ExchangeRates directRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesRowMapper, from, to);
+            ExchangeRates directRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesMapper.getExchangeRatesRowMapper(), from, to);
             System.out.println(directRate);
             if (directRate != null) {
                 return convertToResponse(directRate);
@@ -164,7 +108,7 @@ public class ExchangeRatesService {
 
         // Ищем обратный курс
         try {
-            ExchangeRates reverseRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesRowMapper, to, from);
+            ExchangeRates reverseRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesMapper.getExchangeRatesRowMapper(), to, from);
             if (reverseRate != null) {
                 ExchangeRates reversedRate = new ExchangeRates(
                     reverseRate.getTargetCurrencyId(),
@@ -195,7 +139,7 @@ public class ExchangeRatesService {
         // Ищем прямые курсы
         String sqlDirect = "SELECT * from ExchangeRates WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?) AND targetCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
         try {
-            ExchangeRates directRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesRowMapper, from, to);
+            ExchangeRates directRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesMapper.getExchangeRatesRowMapper(), from, to);
             if (directRate != null) {
                 pathToFind.add(directRate);
                 return pathToFind;
@@ -206,7 +150,7 @@ public class ExchangeRatesService {
 
         // Ищем обратные курсы
         try {
-            ExchangeRates reverseRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesRowMapper, to, from);
+            ExchangeRates reverseRate = jdbcTemplate.queryForObject(sqlDirect, exchangeRatesMapper.getExchangeRatesRowMapper(), to, from);
             if (reverseRate != null) {
                 ExchangeRates reversedRate = new ExchangeRates(
                     reverseRate.getTargetCurrencyId(),
@@ -223,7 +167,7 @@ public class ExchangeRatesService {
 
         // Ищем промежуточные курсы
         String sqlFindAll = "SELECT * from ExchangeRates WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
-        List<ExchangeRates> exchangeRates = jdbcTemplate.query(sqlFindAll, exchangeRatesRowMapper, from);
+        List<ExchangeRates> exchangeRates = jdbcTemplate.query(sqlFindAll, exchangeRatesMapper.getExchangeRatesRowMapper(), from);
         
         for (ExchangeRates exchangeRate : exchangeRates) {
             if (pathToFind.contains(exchangeRate)) {
@@ -255,7 +199,7 @@ public class ExchangeRatesService {
                     try {
                         ExchangeRates finalRate = jdbcTemplate.queryForObject(
                             sqlDirect, 
-                            exchangeRatesRowMapper, 
+                            exchangeRatesMapper.getExchangeRatesRowMapper(), 
                             lastTargetCode, 
                             to
                         );
@@ -281,14 +225,14 @@ public class ExchangeRatesService {
         return rate.setScale(6, RoundingMode.HALF_UP);
     }
 
-    public ExchangeRatesResponse updateExchangeRatesFromTo(String from, String to, BigDecimal rate) {
+    public ExchangeRatesResponseDTO updateExchangeRatesFromTo(String from, String to, BigDecimal rate) {
         String sql = "UPDATE ExchangeRates SET rate = ? WHERE baseCurrencyId = (SELECT id FROM Currencies WHERE code = ?) AND targetCurrencyId = (SELECT id FROM Currencies WHERE code = ?)";
         jdbcTemplate.update(sql, rate, from, to);
         return getExchangeRatesFromTo(from, to);
     }
 
     public ExchangedCurrenciesDTO convertByExchangeRates(String baseCurrencyCode, String targetCurrencyCode, BigDecimal amount) {
-        ExchangeRatesResponse exchangeRatesResponse = getExchangeRatesFromTo(baseCurrencyCode, targetCurrencyCode);
+        ExchangeRatesResponseDTO exchangeRatesResponse = getExchangeRatesFromTo(baseCurrencyCode, targetCurrencyCode);
         BigDecimal rate = exchangeRatesResponse.getRate();
         BigDecimal result = amount.multiply(rate);
         return new ExchangedCurrenciesDTO(exchangeRatesResponse.getBaseCurrency(), exchangeRatesResponse.getTargetCurrency(), amount, rate, result);
